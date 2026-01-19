@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IPTV Player</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    /* 1. Тёмно-оливковый фон всего сайта */
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #3B3A29; /* тёмно-оливковый */
+      color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+
+    /* 2. Стиль для видео: плавающий и "липкий" */
+    #video-container {
+      float: right;
+      margin-left: 20px;
+      margin-bottom: 20px;
+      width: 400px; /* можно адаптировать */
+      position: -webkit-sticky; /* для Safari */
+      position: sticky;
+      top: 20px; /* отступ от верха при прокрутке */
+      z-index: 10;
+    }
+
+    #video {
+      width: 100%;
+      height: auto;
+      background: #000;
+      border-radius: 8px;
+    }
+
+    /* 3. Стиль кнопок: прямоугольные со скруглёнными углами */
+    #channels button {
+      background-color: #5a593f;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      margin: 4px;
+      border-radius: 8px; /* скруглённые углы */
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+      width: calc(100% - 8px); /* чуть уже контейнера */
+      text-align: left;
+    }
+
+    #channels button:hover {
+      background-color: #6b6a4f;
+    }
+
+    /* Очистка потока после float */
+    #content-wrapper::after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Контейнер для "липкого" видео -->
+  <div id="video-container">
+    <video id="video" controls></video>
+  </div>
+
+  <!-- Обёртка для остального контента -->
+  <div id="content-wrapper">
+    <div id="channels">
+      <!-- Каналы будут подгружены сюда -->
+    </div>
+  </div>
+
+  <script>
+    async function loadM3U(url) {
+      const response = await fetch(url);
+      const text = await response.text();
+      const lines = text.split('\n');
+      let channels = [];
+      let currentName = '';
+
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('#EXTINF:')) {
+          const nameMatch = line.match(/,(.*)$/);
+          currentName = nameMatch ? nameMatch[1] : 'Unknown';
+        } else if (line && !line.startsWith('#')) {
+          channels.push({ name: currentName, url: line });
+          currentName = '';
+        }
+      }
+
+      const container = document.getElementById('channels');
+      channels.forEach(ch => {
+        const btn = document.createElement('button');
+        btn.textContent = ch.name;
+        btn.onclick = () => playStream(ch.url);
+        container.appendChild(btn);
+      });
+    }
+
+    function playStream(url) {
+      const video = document.getElementById('video');
+      if (Hls.isSupported()) {
+        if (video.hlsPlayer) video.hlsPlayer.destroy();
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+        video.hlsPlayer = hls;
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.play();
+      }
+    }
+
+    // Замените на ваш M3U-файл (должен поддерживать CORS и содержать HLS-потоки)
+    loadM3U('http://raw.githubusercontent.com/Dimonovich/TV/Dimonovich/FREE/TV');
+  </script>
+</body>
+</html>
